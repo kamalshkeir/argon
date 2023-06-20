@@ -17,19 +17,23 @@ type passwordConfig struct {
 	keyLen  uint32
 }
 
-func Hash(password string) (string, error) {
-	c := &passwordConfig{
+var (
+	salt = make([]byte, 16)
+	c    = &passwordConfig{
 		time:    1,
 		memory:  64 * 1024,
 		threads: 4,
 		keyLen:  32,
 	}
-	// Generate a Salt
-	salt := make([]byte, 16)
-	if _, err := rand.Read(salt); err != nil {
-		return "", err
-	}
+)
 
+func init() {
+	if _, err := rand.Read(salt); err != nil {
+		panic(err)
+	}
+}
+
+func Hash(password string) (string, error) {
 	hash := argon2.IDKey([]byte(password), salt, c.time, c.memory, c.threads, c.keyLen)
 
 	// Base64 encode the salt and hashed password.
@@ -42,10 +46,8 @@ func Hash(password string) (string, error) {
 }
 
 func Match(hash, clearIn string) bool {
-
 	parts := strings.Split(hash, "$")
 
-	c := &passwordConfig{}
 	_, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &c.memory, &c.time, &c.threads)
 	if err != nil {
 		return false
